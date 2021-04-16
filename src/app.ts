@@ -15,65 +15,67 @@ middlewares(app);
 const orchybase = new OrchyBase(true);
 const snsSqs = new SnsSqsSlq();
 
-async function getQueueContacts(): Promise<void> {
+async function getQueueContacts() {
   const queueContacts = await orchybase.getQueueContacts(2, {
     state: 'pending',
   });
 
-  const topic = await snsSqs.createOrGetTopic('sns-event');
+  console.log(queueContacts);
 
-  queueContacts.forEach(async (queueContact) => {
-    const queueInfo = await snsSqs.createOrGetQueue(
-      `sqs-event-${queueContact.api_key}`,
-    );
+  if (queueContacts.length > 0) {
+    const topic = await snsSqs.createOrGetTopic('sns-event');
 
-    const queueName: string = queueInfo.QueueUrl.split('/')[4];
+    queueContacts.forEach(async (queueContact) => {
+      const queueInfo = await snsSqs.createOrGetQueue(
+        `sqs-event-${queueContact.api_key}`,
+      );
 
-    const sub = await snsSqs.subscribeToTopic(
-      topic.TopicArn,
-      `arn:aws:sqs:${process.env.AWS_REGION}:${process.env.AWS_ID_ACCOUNT}:${queueName}`,
-      queueInfo.QueueUrl,
-    );
+      const queueName = queueInfo.QueueUrl.split('/')[4];
 
-    console.log('sub:', sub);
+      const sub = await snsSqs.subscribeToTopic(
+        topic.TopicArn,
+        `arn:aws:sqs:${process.env.AWS_REGION}:${process.env.AWS_ID_ACCOUNT}:${queueName}`,
+        queueInfo.QueueUrl,
+      );
 
-    snsSqs.setFilterPolicyAttributeInSubscription(sub['SubscriptionArn'], {
-      api_key: [queueContact.api_key],
-    });
+      console.log('sub:', sub);
 
-    associatesQueueWithLambda(queueName);
+      snsSqs.setFilterPolicyAttributeInSubscription(sub.SubscriptionArn, {
+        api_key: [queueContact.api_key],
+      });
 
-    const publish = await snsSqs.publishToTopic(
-      topic.TopicArn.split(':')[5],
-      JSON.stringify({
-        id_flow: queueContact.id_flow,
-        api_key: queueContact.api_key,
-        id_contact_data: queueContact.id_contact_data,
-        id_item: queueContact.id_item,
-        event_type: queueContact.event_type,
-        data_type: queueContact.data_type,
-        contact_data: queueContact.contact_data,
-        message: queueContact.message,
-      }),
-      Date.now().toString(),
-      Date.now().toString(),
-      topic.TopicArn,
-      {
-        api_key: {
-          DataType: 'String',
-          StringValue: queueContact.api_key,
+      associatesQueueWithLambda(queueName);
+
+      const publish = await snsSqs.publishToTopic(
+        topic.TopicArn.split(':')[5],
+        JSON.stringify({
+          id_flow: queueContact.id_flow,
+          api_key: queueContact.api_key,
+          id_contact_data: queueContact.id_contact_data,
+          id_item: queueContact.id_item,
+          event_type: queueContact.event_type,
+          data_type: queueContact.data_type,
+          contact_data: queueContact.contact_data,
+          message: queueContact.message,
+        }),
+        Date.now().toString(),
+        Date.now().toString(),
+        topic.TopicArn,
+        {
+          api_key: {
+            DataType: 'String',
+            StringValue: queueContact.api_key,
+          },
         },
-      },
-    );
+      );
 
-    console.log('publish:', publish);
-  });
+      console.log('publish:', publish);
+    });
+  }
 }
 
-// setInterval(() => {
-//   getQueueContacts();
-// }, 10000);
-
-getQueueContacts();
+setInterval(() => {
+  getQueueContacts();
+}, parseInt(process.env.LOOP_TIME, 10));
 
 export default app;
