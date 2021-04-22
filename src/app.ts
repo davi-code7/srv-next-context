@@ -16,7 +16,7 @@ const orchybase = new OrchyBase(true);
 const snsSqs = new SnsSqsSlq();
 
 async function getQueueContacts() {
-  const queueContacts = await orchybase.getQueueContacts(2, {
+  const queueContacts = await orchybase.getQueueContacts(1, {
     state: 'pending',
   });
 
@@ -29,8 +29,6 @@ async function getQueueContacts() {
       const queueInfo = await snsSqs.createOrGetQueue(
         `sqs-event-${queueContact.api_key}`,
       );
-
-      console.log('queueInfo:', queueInfo);
 
       const queueName = queueInfo.QueueUrl.split('/')[4];
 
@@ -45,6 +43,8 @@ async function getQueueContacts() {
       snsSqs.setFilterPolicyAttributeInSubscription(sub.SubscriptionArn, {
         api_key: [queueContact.api_key],
       });
+
+      console.log('queueName:', queueName);
 
       associatesQueueWithLambda(queueName);
 
