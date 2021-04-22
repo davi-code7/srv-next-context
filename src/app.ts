@@ -30,6 +30,8 @@ async function getQueueContacts() {
         `sqs-event-${queueContact.api_key}`,
       );
 
+      console.log('queueInfo:', queueInfo);
+
       const queueName = queueInfo.QueueUrl.split('/')[4];
 
       const sub = await snsSqs.subscribeToTopic(
@@ -38,7 +40,7 @@ async function getQueueContacts() {
         queueInfo.QueueUrl,
       );
 
-      console.log('sub:', sub);
+      // console.log('sub:', sub);
 
       snsSqs.setFilterPolicyAttributeInSubscription(sub.SubscriptionArn, {
         api_key: [queueContact.api_key],
@@ -46,7 +48,7 @@ async function getQueueContacts() {
 
       associatesQueueWithLambda(queueName);
 
-      const publish = await snsSqs.publishToTopic(
+      await snsSqs.publishToTopic(
         topic.TopicArn.split(':')[5],
         JSON.stringify({
           id_flow: queueContact.id_flow,
@@ -69,7 +71,9 @@ async function getQueueContacts() {
         },
       );
 
-      console.log('publish:', publish);
+      // await snsSqs.dele;
+
+      // console.log('publish:', publish);
     });
   }
 }
